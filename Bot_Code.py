@@ -583,6 +583,8 @@ async def cmd_quote(message: Message):
     q = await get_random_quote(message.chat.id)
     if q:
         await message.reply(q)
+    else:
+        await message.reply("Пока нет сохранённых фраз. Напишите пару сообщений без ссылок 🙂")
 
 
 async def cmd_mash(message: Message):
@@ -590,6 +592,8 @@ async def cmd_mash(message: Message):
     s = await get_word_mash(message.chat.id)
     if s:
         await message.reply(s)
+    else:
+        await message.reply("Пока мало фраз для склейки. Надо чуть больше живого чата 🙂")
 
 
 async def cmd_dem(message: Message, bot: Bot):
@@ -620,7 +624,7 @@ async def cmd_dem(message: Message, bot: Bot):
 
     except Exception:
         log.exception("demotivator_failed")
-        await message.reply("⚠️ Не смог сделать демотиватор. Проверь наличие шрифтов и попробуй ещё раз.")
+        await message.reply("⚠️ Не смог сделать демотиватор. Попробуй позже или пришли другое фото.")
 
 
 async def cmd_stats(message: Message):
@@ -678,8 +682,12 @@ async def cmd_help(message: Message):
         "🖼️ /dem — демотиватор: фото+фраза\n"
         "📊 /stats — статистика\n"
         "🎚️ /mode quiet|normal|chaos — режим\n\n"
-        "✨ Иногда Евлампий ставит реакцию на сообщения."
+        "Если бот в группе молчит — проверь Privacy Mode в BotFather (/setprivacy → Disable)."
     )
+
+
+async def unknown_command(message: Message):
+    await message.reply("Не понял команду. Попробуй /help")
 
 
 async def on_any_message(message: Message, bot: Bot):
@@ -696,9 +704,6 @@ async def on_any_message(message: Message, bot: Bot):
             await save_quote(message.chat.id, message.from_user.id if message.from_user else None, message.text)
         except Exception:
             log.exception("save_quote_failed")
-
-    if message.text and message.text.startswith("/"):
-        return
 
     reacted = await maybe_react_to_message(bot, message)
     if reacted:
@@ -785,26 +790,28 @@ async def set_commands(bot: Bot):
 
 async def main():
     if not BOT_TOKEN:
-        raise RuntimeError("BOT_TOKEN не задан в .env")
+        raise RuntimeError("BOT_TOKEN не задан")
 
     await init_db()
 
     bot = Bot(BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     await set_commands(bot)
+    await bot.delete_webhook(drop_pending_updates=True)
 
     dp = Dispatcher()
 
-    dp.message.register(cmd_help, Command("help"))
-    dp.message.register(cmd_panel, Command("panel"))
-    dp.message.register(cmd_quote, Command("quote"))
-    dp.message.register(cmd_mash, Command("mash"))
-    dp.message.register(cmd_dem, Command("dem"))
-    dp.message.register(cmd_stats, Command("stats"))
-    dp.message.register(cmd_mode, Command("mode"))
+    dp.message.register(cmd_help, Command(commands=["help"]))
+    dp.message.register(cmd_panel, Command(commands=["panel"]))
+    dp.message.register(cmd_quote, Command(commands=["quote"]))
+    dp.message.register(cmd_mash, Command(commands=["mash"]))
+    dp.message.register(cmd_dem, Command(commands=["dem"]))
+    dp.message.register(cmd_stats, Command(commands=["stats"]))
+    dp.message.register(cmd_mode, Command(commands=["mode"]))
 
     dp.callback_query.register(on_panel_callback, F.data.startswith("p|"))
 
-    dp.message.register(on_any_message)
+    dp.message.register(unknown_command, F.text.startswith("/"))
+    dp.message.register(on_any_message, ~F.text.startswith("/"))
 
     asyncio.create_task(periodic_poster(bot))
     await dp.start_polling(bot)
