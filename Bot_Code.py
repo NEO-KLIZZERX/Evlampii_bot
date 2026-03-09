@@ -682,7 +682,6 @@ async def cmd_help(message: Message):
         "🖼️ /dem — демотиватор: фото+фраза\n"
         "📊 /stats — статистика\n"
         "🎚️ /mode quiet|normal|chaos — режим\n\n"
-        "Если бот в группе молчит — проверь Privacy Mode в BotFather (/setprivacy → Disable)."
     )
 
 
@@ -819,3 +818,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
